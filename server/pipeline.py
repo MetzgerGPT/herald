@@ -19,16 +19,17 @@ try:
     from pipecat.pipeline.pipeline import Pipeline
     from pipecat.pipeline.runner import PipelineRunner
     from pipecat.pipeline.task import PipelineTask, PipelineParams
-    from pipecat.processors.aggregators.openai_llm_context import OpenAILLMContext
+    from pipecat.processors.aggregators.llm_context import LLMContext
+    from pipecat.processors.audio.vad_processor import VADProcessor
     from pipecat.services.kokoro import KokoroTTSService
-    from pipecat.services.ollama import OllamaLLMService
+    from pipecat.services.ollama.llm import OLLamaLLMService
     from pipecat.services.whisper import WhisperSTTService
     from pipecat.transports.base_transport import TransportParams
-    from pipecat.transports.websocket.fastapi_websocket import (
+    from pipecat.transports.websocket.fastapi import (
         FastAPIWebsocketTransport,
         FastAPIWebsocketParams,
     )
-    from pipecat.vad.silero import SileroVADAnalyzer
+    from pipecat.audio.vad.silero import SileroVADAnalyzer
     PIPECAT_AVAILABLE = True
 except ImportError:
     PIPECAT_AVAILABLE = False
@@ -108,14 +109,11 @@ class HeraldPipeline:
 
         transport = FastAPIWebsocketTransport(
             websocket=websocket,
-            params=FastAPIWebsocketParams(
-                audio_in_enabled=True,
-                audio_out_enabled=True,
-                vad_enabled=True,
-                vad_analyzer=SileroVADAnalyzer(),
-                vad_audio_passthrough=True,
-            ),
+            params=FastAPIWebsocketParams(),
         )
+
+        # VAD: pipeline processor (not transport param as of Pipecat 1.3.0)
+        vad = VADProcessor(vad_analyzer=SileroVADAnalyzer())
 
         # STT: local whisper.cpp (Phase 1)
         # TODO Phase 3: add Deepgram cloud path with consent gate
@@ -123,7 +121,7 @@ class HeraldPipeline:
 
         # LLM: Ollama local (Phase 1)
         # TODO Phase 3: wire LiteLLM routing with cloud fallback + consent prompt
-        llm = OllamaLLMService(
+        llm = OLLamaLLMService(
             model=LOCAL_LLM_MODEL,
             base_url=OLLAMA_BASE_URL,
         )
@@ -132,7 +130,7 @@ class HeraldPipeline:
         tts = KokoroTTSService()
 
         # Context
-        llm_context = OpenAILLMContext(
+        llm_context = LLMContext(
             messages=[{"role": "system", "content": self.system_prompt}]
         )
         # Tier 2: full context stored, retrievable via tool call (Phase 4)
@@ -143,6 +141,7 @@ class HeraldPipeline:
 
         pipeline = Pipeline([
             transport.input(),
+            vad,
             stt,
             context_aggregator.user(),
             llm,
@@ -151,10 +150,8 @@ class HeraldPipeline:
             context_aggregator.assistant(),
         ])
 
-        self._task = PipelineTask(
-            pipeline,
-            params=PipelineParams(allow_interruptions=True),
-        )
+        # allow_interruptions removed in Pipecat 1.3.0 — interruptions always enabled
+        self._task = PipelineTask(pipeline, params=PipelineParams())
 
         self._runner = PipelineRunner()
         await self._runner.run(self._task)
