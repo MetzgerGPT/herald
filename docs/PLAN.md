@@ -23,7 +23,7 @@ All scaffold files committed. Core API bugs corrected against Pipecat 1.3.0 live
 - `server/auth.py` — `hmac.compare_digest` constant-time Bearer token verification
 - `context/schemas/talky_session.schema.json`
 - `context/schemas/family_interview.schema.json`
-- `scripts/setup.sh` — Mac setup (Homebrew, Ollama, whisper.cpp, Python venv)
+- `scripts/setup.sh` — Windows PC setup (Homebrew, Ollama, faster-whisper, Python venv)
 - `scripts/dev.sh` — Start dev server
 - `scripts/test_pipeline.sh` — Smoke tests (health, auth, Ollama, context loader)
 - `scripts/local_test.sh` — Run `server/local_pipeline.py`
@@ -48,18 +48,18 @@ All scaffold files committed. Core API bugs corrected against Pipecat 1.3.0 live
 
 ## Phase 1 — Local voice loop ← CURRENT
 
-**Goal:** Confirm the full voice pipeline works on the Mac before adding any networking.
+**Goal:** Confirm the full voice pipeline works on the Windows PC before adding any networking.
 
 **No iPhone. No WebSocket server. Mic + speaker direct.**
 
 ### Steps
 
-1. On Mac: `git clone https://github.com/MetzgerGPT/herald && cd herald`
-2. `bash scripts/setup.sh` — installs all deps including whisper.cpp + PyAudio
-3. Set `HERALD_AUTH_TOKEN` in `.env` (not needed for local test, but avoids load_dotenv warnings)
-4. Confirm Ollama running: `ollama serve` (or start via Homebrew service)
+1. `git clone https://github.com/MetzgerGPT/herald` (PowerShell)
+2. Elevated PowerShell: `.\scripts\setup.ps1` — installs all deps including faster-whisper + PyAudio
+3. Set `HERALD_AUTH_TOKEN` in `.env`
+4. Confirm Ollama running: start Ollama from system tray or `ollama serve`
 5. Confirm model pulled: `ollama pull llama3.3`
-6. `bash scripts/local_test.sh` — runs `server/local_pipeline.py`
+6. `.\scripts\local_test.ps1` — runs `server/local_pipeline.py`
 7. Speak into mic → wait for Herald to respond
 
 **Success criteria:**
@@ -78,22 +78,22 @@ python -m server.local_pipeline --mode talky --context ~/talky/output/latest.jso
 
 | Symptom | Likely cause |
 |---------|-------------|
-| PyAudio import error | `brew install portaudio` not run, or `pipecat-ai[local]` not installed |
-| Whisper import error | `pipecat-ai[whisper]` extra not installed, or whisper.cpp not built |
-| Ollama timeout | `ollama serve` not running, or model not pulled |
-| Kokoro error | `pipecat-ai[kokoro]` extra not installed, or espeak-ng missing |
-| No mic input | System audio permissions — grant mic access to Terminal in macOS Privacy settings |
+| PyAudio import error | `pipecat-ai[local]` not installed, or Microsoft C++ Build Tools missing |
+| Whisper import error | `pipecat-ai[whisper]` extra not installed |
+| Ollama timeout | Ollama not running — start from system tray or `ollama serve` |
+| Kokoro error | `pipecat-ai[kokoro]` extra not installed, or espeak-ng not installed/on PATH |
+| No mic input | Windows mic permissions — Settings → Privacy → Microphone → allow app access |
 
 ---
 
 ## Phase 2 — iOS client (TestFlight)
 
-**Goal:** iPhone app connects to Mac server over Tailscale.
+**Goal:** iPhone app connects to Windows PC server over Tailscale.
 
 **Prerequisites:** Phase 1 voice loop working.
 
 ### Steps
-1. Set up Tailscale on Mac mini and iPhone
+1. Set up Tailscale on Windows PC mini and iPhone
 2. Generate TLS cert for Tailscale hostname
 3. Fix WebSocket server for iOS client:
    - iOS uses `URLSessionWebSocketTask` (native Swift)
@@ -157,7 +157,7 @@ python -m server.local_pipeline --mode talky --context ~/talky/output/latest.jso
 | Decision | Choice | Reason |
 |----------|--------|--------|
 | Transport | WebSocket over Tailscale | Simpler than WebRTC for client-server; no NAT traversal needed |
-| STT | whisper.cpp (local) | Metal-accelerated on Apple Silicon; ~10× real-time; no cloud dependency |
+| STT | faster-whisper (local) | Metal-accelerated on Apple Silicon; ~10× real-time; no cloud dependency |
 | LLM | Ollama (local-first) | Full data sovereignty; cloud is opt-in |
 | TTS | Kokoro | Apache 2.0; <300ms; CPU-only; no API key |
 | Auth | Bearer token + hmac.compare_digest | Simple, secure, no external auth service |

@@ -20,12 +20,12 @@ iPhone (Herald.app)
     │  WebSocket / TLS
     │  Auth: Bearer token in header
     ▼
-Mac mini (herald-server, Tailscale IP)
+Windows PC (herald-server, Tailscale IP)
 ```
 
 - Tailscale handles peer-to-peer encryption — no traffic through Tailscale servers
 - TLS cert pinned to server's cert (protects against rogue Tailscale nodes)
-- No mDNS/Bonjour — use fixed Tailscale IP or hostname (`server.tail-xxxxx.ts.net`)
+- No mDNS/Bonjour — use fixed Tailscale IP or hostname (`desktop.tail-xxxxx.ts.net`)
 
 ## Phase 2 checklist
 
