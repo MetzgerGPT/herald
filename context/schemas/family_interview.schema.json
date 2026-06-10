@@ -1,0 +1,62 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://herald.local/schemas/family_interview.schema.json",
+  "title": "Family Interview Profile",
+  "description": "Input profile for a Herald-guided family interview session",
+  "type": "object",
+  "required": ["subject", "interview_id"],
+  "properties": {
+    "interview_id": { "type": "string" },
+    "created_date": { "type": "string", "format": "date" },
+    "interviewer": {
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "relationship_to_subject": { "type": "string" }
+      }
+    },
+    "subject": {
+      "type": "object",
+      "required": ["name"],
+      "properties": {
+        "name": { "type": "string" },
+        "relationship": { "type": "string", "examples": ["grandfather", "grandmother", "parent"] },
+        "born": { "type": "string", "description": "Year or full date" },
+        "birthplace": { "type": "string" },
+        "current_residence": { "type": "string" }
+      }
+    },
+    "focus_areas": {
+      "type": "array",
+      "description": "Thematic areas to explore in this session",
+      "items": { "type": "string" },
+      "examples": [["childhood memories", "immigration story", "career", "values passed down"]]
+    },
+    "opening_question": {
+      "type": "string",
+      "description": "Suggested first question to open the interview"
+    },
+    "background_notes": {
+      "type": "string",
+      "description": "Interviewer-supplied context to inform Herald's questions"
+    },
+    "completed_sessions": {
+      "type": "array",
+      "description": "Previous session transcripts or summaries",
+      "items": {
+        "type": "object",
+        "properties": {
+          "session_date": { "type": "string", "format": "date" },
+          "topics_covered": { "type": "array", "items": { "type": "string" } },
+          "key_quotes": { "type": "array", "items": { "type": "string" } },
+          "follow_up_questions": { "type": "array", "items": { "type": "string" } }
+        }
+      }
+    },
+    "custom": {
+      "type": "object",
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": true
+}

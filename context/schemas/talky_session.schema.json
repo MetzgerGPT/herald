@@ -1,0 +1,94 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://herald.local/schemas/talky_session.schema.json",
+  "title": "TALKY Session",
+  "description": "Output format for a TALKY planning/briefing session",
+  "type": "object",
+  "required": ["user", "session_id", "date"],
+  "properties": {
+    "user": {
+      "type": "object",
+      "required": ["name"],
+      "properties": {
+        "name": { "type": "string" },
+        "timezone": { "type": "string" }
+      }
+    },
+    "session_id": { "type": "string" },
+    "date": { "type": "string", "format": "date" },
+    "session_note": { "type": "string" },
+    "priorities": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["title"],
+        "properties": {
+          "id": { "type": "string" },
+          "title": { "type": "string" },
+          "status": {
+            "type": "string",
+            "enum": ["active", "blocked", "in_progress", "completed", "deferred"]
+          },
+          "domain": { "type": "string" },
+          "due_date": { "type": "string", "format": "date" },
+          "notes": { "type": "string" }
+        }
+      }
+    },
+    "next_action": {
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "due": { "type": "string" },
+        "domain": { "type": "string" }
+      }
+    },
+    "wip": {
+      "type": "array",
+      "description": "Active work-in-progress items",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "action": { "type": "string" },
+          "agent": { "type": "string" },
+          "status": { "type": "string" },
+          "due_date": { "type": "string", "format": "date" }
+        }
+      }
+    },
+    "job_pipeline": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "company": { "type": "string" },
+          "role_title": { "type": "string" },
+          "stage": { "type": "string" },
+          "next_action": { "type": "string" },
+          "next_action_due": { "type": "string", "format": "date" }
+        }
+      }
+    },
+    "improvement_log": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "entry_id": { "type": "string" },
+          "summary": { "type": "string" },
+          "severity": {
+            "type": "string",
+            "enum": ["low", "medium", "high", "critical"]
+          }
+        }
+      }
+    },
+    "custom": {
+      "type": "object",
+      "description": "Extensible payload for project-specific data",
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": true
+}

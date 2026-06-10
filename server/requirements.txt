@@ -1,0 +1,28 @@
+# Herald server dependencies
+# Install: pip install -r requirements.txt
+
+# Core framework
+fastapi==0.115.0
+uvicorn[standard]==0.32.0
+websockets==13.1
+python-dotenv==1.0.1
+
+# Pipecat voice pipeline
+# Install extras: pip install "pipecat-ai[silero,kokoro,ollama,whisper]"
+pipecat-ai>=1.1.0
+
+# LLM routing
+litellm>=1.50.0
+
+# Audio processing
+numpy>=1.26.0
+soundfile>=0.12.1
+
+# Security
+cryptography>=42.0.0
+python-jose[cryptography]>=3.3.0
+
+# Utilities
+pydantic>=2.8.0
+httpx>=0.27.0
+structlog>=24.4.0

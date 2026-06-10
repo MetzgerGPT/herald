@@ -1,0 +1,61 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+env/
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+.mypy_cache/
+
+# Environment & secrets
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+*.crt
+
+# Whisper models (large binary files)
+models/
+*.bin
+*.gguf
+*.ggml
+
+# Audio cache (never commit audio data)
+audio_cache/
+*.wav
+*.mp3
+*.opus
+*.ogg
+recordings/
+
+# Logs
+logs/
+*.log
+herald.db
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# iOS / Xcode
+ios/Herald.xcodeproj/xcuserdata/
+ios/Herald.xcworkspace/xcuserdata/
+ios/DerivedData/
+ios/build/
+*.xcuserstate
+*.xcbkptlist
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*~
+
+# Tailscale (local config — never commit)
+tailscale.json
