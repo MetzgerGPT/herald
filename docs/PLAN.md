@@ -62,6 +62,14 @@ All scaffold files committed. Core API bugs corrected against Pipecat 1.3.0 live
 6. `.\scripts\local_test.ps1` — runs `server/local_pipeline.py`
 7. Speak into mic → wait for Herald to respond
 
+**Hardware context (i5-1335U, 16GB RAM, Intel Iris Xe — CPU-only):**
+- No CUDA/GPU acceleration — everything runs on CPU
+- Expected end-to-end latency: **5–12 seconds** per exchange
+- STT: faster-whisper `small.en` on CPU, ~1–2× real-time
+- LLM: qwen2.5:7b on CPU, ~5–10 tokens/sec
+- TTS: Kokoro on CPU, <500ms (already fast)
+- This is acceptable for TALKY briefings; Phase 3 cloud LLM drops this to ~2–3s
+
 **Success criteria:**
 - [ ] Mic audio captured without errors
 - [ ] Whisper transcribes speech to text (see logs)

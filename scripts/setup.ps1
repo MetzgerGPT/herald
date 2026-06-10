@@ -21,8 +21,10 @@ if (-not (Get-Command ollama -ErrorAction SilentlyContinue)) {
     $env:PATH = [System.Environment]::GetEnvironmentVariable("PATH", "Machine") + ";" +
                 [System.Environment]::GetEnvironmentVariable("PATH", "User")
 }
-Write-Host "  Pulling llama3.3 (this takes a while on first run)..."
-ollama pull llama3.3
+# Hardware: i5-1335U, 16GB RAM, Intel Iris Xe (CPU-only). qwen2.5:7b fits safely.
+# After this works, optionally pull phi4 (~8.5GB) for higher accuracy.
+Write-Host "  Pulling qwen2.5:7b (~4.7GB download, takes a while)..."
+ollama pull qwen2.5:7b
 
 # ── 2. espeak-ng (required by Kokoro TTS) ────────────────────────────────────
 Write-Host "`n→ Checking espeak-ng..." -ForegroundColor Yellow
