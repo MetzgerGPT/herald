@@ -8,8 +8,10 @@ websockets==13.1
 python-dotenv==1.0.1
 
 # Pipecat voice pipeline
-# Install extras: pip install "pipecat-ai[silero,kokoro,ollama,whisper]"
-pipecat-ai>=1.1.0
+# Server: pip install "pipecat-ai[silero,kokoro,ollama,whisper]"
+# Local test (server/local_pipeline.py): pip install "pipecat-ai[silero,kokoro,ollama,whisper,local]"
+# local extra requires: brew install portaudio (macOS)
+pipecat-ai>=1.3.0
 
 # LLM routing
 litellm>=1.50.0

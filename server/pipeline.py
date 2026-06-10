@@ -8,7 +8,6 @@ TTS: Kokoro (local, always).
 """
 
 import os
-import asyncio
 import structlog
 from typing import Any
 
@@ -18,13 +17,16 @@ log = structlog.get_logger()
 try:
     from pipecat.pipeline.pipeline import Pipeline
     from pipecat.pipeline.runner import PipelineRunner
-    from pipecat.pipeline.task import PipelineTask, PipelineParams
+    from pipecat.pipeline.worker import PipelineWorker, PipelineParams
     from pipecat.processors.aggregators.llm_context import LLMContext
-    from pipecat.processors.audio.vad_processor import VADProcessor
-    from pipecat.services.kokoro import KokoroTTSService
+    from pipecat.processors.aggregators.llm_response_universal import (
+        LLMContextAggregatorPair,
+        LLMUserAggregatorParams,
+    )
+    from pipecat.serializers.protobuf import ProtobufFrameSerializer
+    from pipecat.services.kokoro.tts import KokoroTTSService
     from pipecat.services.ollama.llm import OLLamaLLMService
     from pipecat.services.whisper import WhisperSTTService
-    from pipecat.transports.base_transport import TransportParams
     from pipecat.transports.websocket.fastapi import (
         FastAPIWebsocketTransport,
         FastAPIWebsocketParams,
@@ -33,9 +35,12 @@ try:
     PIPECAT_AVAILABLE = True
 except ImportError:
     PIPECAT_AVAILABLE = False
-    log.warning("pipeline.pipecat_not_installed", hint="Run: pip install 'pipecat-ai[silero,kokoro,ollama,whisper]'")
+    log.warning(
+        "pipeline.pipecat_not_installed",
+        hint="Run: pip install 'pipecat-ai[silero,kokoro,ollama,whisper]'",
+    )
 
-# LiteLLM for routing
+# LiteLLM for cloud routing (Phase 3)
 try:
     import litellm
     LITELLM_AVAILABLE = True
@@ -44,13 +49,9 @@ except ImportError:
 
 
 HERALD_ENV = os.getenv("HERALD_ENV", "development")
-
-# LLM config — primary is Ollama local, cloud requires explicit session flag
 LOCAL_LLM_MODEL = os.getenv("HERALD_LOCAL_LLM_MODEL", "llama3.3")
 CLOUD_LLM_MODEL = os.getenv("HERALD_CLOUD_LLM_MODEL", "claude-opus-4-7")
 OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
-
-# Whisper config
 WHISPER_MODEL = os.getenv("HERALD_WHISPER_MODEL", "base.en")
 
 
@@ -76,7 +77,7 @@ def _build_system_prompt(mode: str, context: dict | None) -> str:
     if not context:
         return base
 
-    # Tier 1: inject condensed context (top priorities, next action, session name)
+    # Tier 1: inject condensed context (top priorities, next action, session note)
     context_block = context.get("_system_context_tier1", "")
     if context_block:
         return f"{base}\n\n<context>\n{context_block}\n</context>"
@@ -86,34 +87,38 @@ def _build_system_prompt(mode: str, context: dict | None) -> str:
 
 class HeraldPipeline:
     """
-    Wraps Pipecat pipeline for a single voice session.
+    Wraps Pipecat pipeline for a single WebSocket voice session.
 
-    Phase 1 implementation: local STT + local LLM + local TTS.
-    Cloud fallback added in Phase 3.
+    Phase 1: local STT + local LLM + local TTS.
+    Wire protocol: ProtobufFrameSerializer (required — transport silently drops
+    all frames if no serializer is set).
+    Cloud fallback in Phase 3.
     """
 
     def __init__(self, mode: str = "freeform", context: dict | None = None):
         self.mode = mode
         self.context = context
         self.system_prompt = _build_system_prompt(mode, context)
-        self._runner: Any = None
-        self._task: Any = None
+        self._worker: Any = None
 
     async def run(self, websocket: Any) -> None:
         if not PIPECAT_AVAILABLE:
             await websocket.send_json({
                 "type": "error",
-                "message": "Pipecat not installed. Run: pip install 'pipecat-ai[silero,kokoro,ollama,whisper]'"
+                "message": "Pipecat not installed. Run: pip install 'pipecat-ai[silero,kokoro,ollama,whisper]'",
             })
             return
 
+        # Serializer is mandatory — without it, _receive_messages silently drops
+        # every incoming frame and _write_frame sends nothing back.
         transport = FastAPIWebsocketTransport(
             websocket=websocket,
-            params=FastAPIWebsocketParams(),
+            params=FastAPIWebsocketParams(
+                audio_in_enabled=True,
+                audio_out_enabled=True,
+                serializer=ProtobufFrameSerializer(),
+            ),
         )
-
-        # VAD: pipeline processor (not transport param as of Pipecat 1.3.0)
-        vad = VADProcessor(vad_analyzer=SileroVADAnalyzer())
 
         # STT: local whisper.cpp (Phase 1)
         # TODO Phase 3: add Deepgram cloud path with consent gate
@@ -129,7 +134,6 @@ class HeraldPipeline:
         # TTS: Kokoro local (always local — no cloud path for TTS)
         tts = KokoroTTSService()
 
-        # Context
         llm_context = LLMContext(
             messages=[{"role": "system", "content": self.system_prompt}]
         )
@@ -137,28 +141,29 @@ class HeraldPipeline:
         if self.context:
             llm_context.set_tools([])  # tool registration added in Phase 4
 
-        context_aggregator = llm.create_context_aggregator(llm_context)
+        # VAD lives in LLMUserAggregatorParams, not as a separate pipeline stage
+        user_aggregator, assistant_aggregator = LLMContextAggregatorPair(
+            llm_context,
+            user_params=LLMUserAggregatorParams(vad_analyzer=SileroVADAnalyzer()),
+        )
 
         pipeline = Pipeline([
             transport.input(),
-            vad,
             stt,
-            context_aggregator.user(),
+            user_aggregator,
             llm,
             tts,
             transport.output(),
-            context_aggregator.assistant(),
+            assistant_aggregator,
         ])
 
-        # allow_interruptions removed in Pipecat 1.3.0 — interruptions always enabled
-        self._task = PipelineTask(pipeline, params=PipelineParams())
-
-        self._runner = PipelineRunner()
-        await self._runner.run(self._task)
+        self._worker = PipelineWorker(pipeline, params=PipelineParams())
+        runner = PipelineRunner()
+        await runner.run(self._worker)
 
     async def cleanup(self) -> None:
-        if self._task:
+        if self._worker:
             try:
-                await self._task.cancel()
+                await self._worker.cancel()
             except Exception:
                 pass
